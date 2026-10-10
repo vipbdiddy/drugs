@@ -1,4 +1,4 @@
-# Still With Me
+# Ism's
 
 A mobile app for keeping the sayings — the "isms" — of people you've lost, and finding the right one when you need it.
 

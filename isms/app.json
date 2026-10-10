@@ -1,14 +1,14 @@
 {
   "expo": {
-    "name": "Still With Me",
-    "slug": "still-with-me",
+    "name": "Ism's",
+    "slug": "isms",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.stillwithme.app"
+      "bundleIdentifier": "com.vipbdiddy.isms"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +18,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.stillwithme.app"
+      "package": "com.vipbdiddy.isms"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -29,12 +29,12 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Still With Me uses your photos so you can add a picture of your loved one.",
+          "photosPermission": "Ism's uses your photos so you can add a picture of your loved one.",
           "cameraPermission": false,
           "microphonePermission": false
         }
       ]
     ],
-    "scheme": "stillwithme"
+    "scheme": "isms"
   }
 }

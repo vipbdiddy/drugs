@@ -6,6 +6,7 @@ import { deletePhoto } from './photos';
 import { SEED_ISMS, SEED_LOVED_ONES } from './seed';
 import type { Ism, LovedOne, Settings } from './types';
 
+// Kept from the app's first name so data saved under it still loads.
 const STORAGE_KEY = 'still-with-me/v1';
 
 interface PersistedState {
