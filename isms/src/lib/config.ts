@@ -7,6 +7,6 @@ export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_1pnPu08yeb6mIn_S5jC1eQ_2
  * Social sign-in buttons to show. Add a provider here only after switching it on in
  * Supabase → Authentication → Sign In / Providers, or its button will lead to an error.
  */
-export const SOCIAL_PROVIDERS: SocialProvider[] = [];
+export const SOCIAL_PROVIDERS: SocialProvider[] = ['google'];
 
 export type SocialProvider = 'google' | 'apple' | 'facebook';

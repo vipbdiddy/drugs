@@ -32,7 +32,7 @@ isms://**
 
 Each provider is switched on under **Authentication → Sign In / Providers**. The callback URL each provider asks for is shown on that page: `https://bxuvjyinsaekyufrewxs.supabase.co/auth/v1/callback`.
 
-- **Google** (free): create an OAuth client of type **Web application** in Google Cloud Console → APIs & Services → Credentials, add the callback URL above as an authorized redirect URI, and paste its Client ID and Client Secret into Supabase.
+- **Google** (free, switched on): an OAuth client of type **Web application** in Google Cloud Console → Google Auth Platform → Clients, with the callback URL above as an authorized redirect URI; its Client ID and Client Secret are in Supabase. While the Google app is in **Testing**, only the test users listed under Google Auth Platform → Audience can sign in. To let anyone sign in, fill in the home page, privacy policy and terms links under **Branding**, then **Publish app** under **Audience**.
 - **Facebook** (free): create an app at developers.facebook.com with **Facebook Login**, add the callback URL under Valid OAuth Redirect URIs, and paste its App ID and App Secret into Supabase. Facebook only lets the public sign in after the app passes its review.
 - **Apple** (needs an Apple Developer account, $99/year): create a Services ID and a key for **Sign in with Apple**, then fill them into Supabase. Required by Apple if the iPhone app offers Google or Facebook sign-in.
 
