@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Session } from '@supabase/supabase-js';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import * as db from './db';
 import { moveDeviceDataToAccount, readLegacy } from './migrate';
@@ -104,25 +104,35 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return list.map((l) => (l.photoPath ? { ...l, photoUri: links.get(l.photoPath) } : l));
   }, []);
 
+  // Only the newest load may update the screen, so a slow one from before a sign-out can't win.
+  const latestLoad = useRef(0);
   const refresh = useCallback(async () => {
+    const load = ++latestLoad.current;
     setLoading(true);
     try {
       const data = await db.fetchAll(userId || null);
-      setLovedOnes(await withPhotos(data.lovedOnes));
+      const withLinks = await withPhotos(data.lovedOnes);
+      if (load !== latestLoad.current) return;
+      setLovedOnes(withLinks);
       setIsms(data.isms);
       setSavedIds(data.savedIsmIds);
       setLoadError(undefined);
     } catch (e) {
+      if (load !== latestLoad.current) return;
       console.warn('Could not load', e);
       setLoadError('Couldn’t load memories. Check your connection and pull down to try again.');
     } finally {
-      setLoading(false);
+      if (load === latestLoad.current) setLoading(false);
     }
   }, [userId, withPhotos]);
 
   // Reload whenever someone signs in or out; on sign-in, bring over anything saved on this phone first.
   useEffect(() => {
     if (!ready) return;
+    // Don't keep showing the previous account's memories while the new ones load.
+    setLovedOnes([]);
+    setIsms([]);
+    setSavedIds([]);
     (async () => {
       if (userId) {
         try {

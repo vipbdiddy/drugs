@@ -6,6 +6,7 @@ import { Button, ErrorNote, Field, styles } from '../components/ui';
 import {
   confirmSignUp,
   friendlyAuthError,
+  resendSignUpCode,
   resetPassword,
   sendPasswordReset,
   signInWithEmail,
@@ -187,7 +188,14 @@ export default function Account() {
           </Text>
         )}
         {mode === 'confirm' && (
-          <Text style={link} onPress={() => run(async () => void (await signUpWithEmail(cleanEmail, password)))}>
+          <Text
+            style={link}
+            onPress={() =>
+              run(async () => {
+                await resendSignUpCode(cleanEmail);
+                setInfo(`We sent a new code to ${cleanEmail}.`);
+              })
+            }>
             Send the code again
           </Text>
         )}

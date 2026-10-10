@@ -26,8 +26,10 @@ export async function pickPhoto(): Promise<PickedPhoto | undefined> {
   });
   if (result.canceled) return undefined;
   const asset = result.assets[0];
-  if (!asset.base64) throw new Error('Couldn’t read that photo. Try another one.');
-  return { previewUri: asset.uri, base64: asset.base64 };
+  // On the web the picked photo can come back as a data URI instead of separate base64.
+  const base64 = asset.base64 ?? (asset.uri.startsWith('data:') ? asset.uri.slice(asset.uri.indexOf(',') + 1) : undefined);
+  if (!base64) throw new Error('Couldn’t read that photo. Try another one.');
+  return { previewUri: asset.uri, base64 };
 }
 
 /** Upload a photo into the person's own folder and return its storage path. */

@@ -43,7 +43,15 @@ export async function signInWithEmail(email: string, password: string) {
 export async function signUpWithEmail(email: string, password: string): Promise<boolean> {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
+  // With email confirmation on, Supabase answers an existing address with a user that has no
+  // identities (and sends nothing), so say so instead of waiting for a code that won't come.
+  if (!data.session && data.user?.identities?.length === 0) throw new Error('User already registered');
   return data.session !== null;
+}
+
+export async function resendSignUpCode(email: string) {
+  const { error } = await supabase.auth.resend({ type: 'signup', email });
+  if (error) throw error;
 }
 
 export async function confirmSignUp(email: string, code: string) {
