@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
 
-import { Button, Field, confirmDestructive, styles } from '../../components/ui';
+import { Button, DangerButton, Field, styles } from '../../components/ui';
 import { useStore } from '../../lib/store';
 import { colors } from '../../lib/theme';
 
@@ -37,18 +37,6 @@ export default function EditLovedOne() {
     }
   };
 
-  const remove = () =>
-    existing &&
-    confirmDestructive(
-      `Remove ${existing.name}?`,
-      'This deletes them and every saying you added for them.',
-      'Remove',
-      () => {
-        deleteLovedOne(existing.id);
-        router.dismissAll();
-      },
-    );
-
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Field label="Name" placeholder="What you called them — Grandma Jo, Pops…" value={name} onChangeText={setName} />
@@ -74,7 +62,17 @@ export default function EditLovedOne() {
       </View>
 
       <Button title={existing ? 'Save' : 'Add'} onPress={save} disabled={!name.trim()} />
-      {existing && <Button title="Remove" variant="danger" onPress={remove} />}
+      {existing && (
+        <DangerButton
+          title="Remove"
+          message={`Remove ${existing.name}? This deletes them and every saying you added for them.`}
+          confirmTitle="Remove"
+          onConfirm={() => {
+            deleteLovedOne(existing.id);
+            router.dismissAll();
+          }}
+        />
+      )}
     </ScrollView>
   );
 }

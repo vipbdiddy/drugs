@@ -1,18 +1,10 @@
 import { ScrollView, Text } from 'react-native';
 
-import { Button, Field, ScopeToggle, confirmDestructive, styles } from '../../components/ui';
+import { DangerButton, Field, ScopeToggle, styles } from '../../components/ui';
 import { useStore } from '../../lib/store';
 
 export default function SettingsScreen() {
   const { settings, updateSettings, resetEverything } = useStore();
-
-  const confirmReset = () =>
-    confirmDestructive(
-      'Delete everything?',
-      'This removes all your loved ones and their sayings from this device.',
-      'Delete',
-      resetEverything,
-    );
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -37,7 +29,12 @@ export default function SettingsScreen() {
       </Text>
 
       <Text style={styles.subheading}>Danger zone</Text>
-      <Button title="Delete all my data" variant="danger" onPress={confirmReset} />
+      <DangerButton
+        title="Delete all my data"
+        message="This removes all your loved ones and their sayings from this device. It can't be undone."
+        confirmTitle="Delete"
+        onConfirm={resetEverything}
+      />
     </ScrollView>
   );
 }

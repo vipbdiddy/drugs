@@ -1,0 +1,63 @@
+name: Android APK
+
+on:
+  push:
+    paths:
+      - 'still-with-me/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: still-with-me
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: still-with-me/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test
+
+      - name: Generate the native Android project
+        run: npx expo prebuild --platform android --no-install
+        env:
+          CI: 1
+
+      - name: Build the APK
+        working-directory: still-with-me/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - run: cp android/app/build/outputs/apk/release/app-release.apk still-with-me.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: still-with-me-apk
+          path: still-with-me/still-with-me.apk
+
+      # Builds from main become a release, so the newest APK is always at
+      # https://github.com/<owner>/<repo>/releases/latest/download/still-with-me.apk
+      - name: Publish release
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-${{ github.run_number }}
+          name: Still With Me (Android build ${{ github.run_number }})
+          body: Install on Android by opening still-with-me.apk on your phone.
+          files: still-with-me/still-with-me.apk
+          make_latest: true

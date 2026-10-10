@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
 
-import { Button, Field, TopicPicker, confirmDestructive, styles } from '../../components/ui';
+import { Button, DangerButton, Field, TopicPicker, styles } from '../../components/ui';
 import { detectTopics } from '../../lib/advice';
 import { useStore } from '../../lib/store';
 import { colors } from '../../lib/theme';
@@ -35,13 +35,6 @@ export default function EditIsm() {
     else addIsm(fields);
     router.back();
   };
-
-  const remove = () =>
-    existing &&
-    confirmDestructive('Delete this saying?', 'This can’t be undone.', 'Delete', () => {
-      deleteIsm(existing.id);
-      router.back();
-    });
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
@@ -83,7 +76,17 @@ export default function EditIsm() {
       )}
 
       <Button title={existing ? 'Save' : 'Add'} onPress={save} disabled={!text.trim()} />
-      {existing && <Button title="Delete" variant="danger" onPress={remove} />}
+      {existing && (
+        <DangerButton
+          title="Delete"
+          message="Delete this saying? This can't be undone."
+          confirmTitle="Delete"
+          onConfirm={() => {
+            deleteIsm(existing.id);
+            router.back();
+          }}
+        />
+      )}
     </ScrollView>
   );
 }

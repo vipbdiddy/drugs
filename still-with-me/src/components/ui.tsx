@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
 
 import { colors, space } from '../lib/theme';
 import { TOPICS } from '../lib/topics';
@@ -157,17 +157,35 @@ export const styles = StyleSheet.create({
   inputMultiline: { minHeight: 90, textAlignVertical: 'top' },
   hint: { fontSize: 12, color: colors.muted },
   empty: { padding: space.xl, alignItems: 'center', gap: space.md },
+  confirmBox: { gap: space.md, padding: space.lg, borderRadius: 12, borderWidth: 1, borderColor: colors.danger, backgroundColor: colors.card },
   emptyTitle: { fontSize: 16, color: colors.muted, textAlign: 'center' },
 });
 
-/** Destructive-action confirm that also works on web, where Alert buttons aren't supported. */
-export function confirmDestructive(title: string, message: string, action: string, onConfirm: () => void) {
-  if (Platform.OS === 'web') {
-    if (window.confirm(`${title}\n\n${message}`)) onConfirm();
-    return;
-  }
-  Alert.alert(title, message, [
-    { text: 'Cancel', style: 'cancel' },
-    { text: action, style: 'destructive', onPress: onConfirm },
-  ]);
+/** A destructive button that asks "are you sure?" in place, so it works the same on phones and the web. */
+export function DangerButton({
+  title,
+  message,
+  confirmTitle,
+  onConfirm,
+}: {
+  title: string;
+  message: string;
+  confirmTitle: string;
+  onConfirm: () => void;
+}) {
+  const [asking, setAsking] = useState(false);
+  if (!asking) return <Button title={title} variant="danger" onPress={() => setAsking(true)} />;
+  return (
+    <View style={styles.confirmBox}>
+      <Text style={styles.body}>{message}</Text>
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <View style={{ flex: 1 }}>
+          <Button title="Cancel" variant="secondary" onPress={() => setAsking(false)} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button title={confirmTitle} variant="danger" onPress={onConfirm} />
+        </View>
+      </View>
+    </View>
+  );
 }
