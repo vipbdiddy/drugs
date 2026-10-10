@@ -126,6 +126,14 @@ export function Field({ label, hint, ...input }: TextInputProps & { label: strin
   );
 }
 
+export function ErrorNote({ message }: { message: string }) {
+  return (
+    <Text style={styles.error} accessibilityRole="alert">
+      {message}
+    </Text>
+  );
+}
+
 export function Empty({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <View style={styles.empty}>
@@ -180,6 +188,7 @@ export const styles = StyleSheet.create({
   inputMultiline: { minHeight: 90, textAlignVertical: 'top' },
   hint: { fontSize: 12, color: colors.muted },
   empty: { padding: space.xl, alignItems: 'center', gap: space.md },
+  error: { fontSize: 14, color: colors.danger, lineHeight: 20 },
   confirmBox: { gap: space.md, padding: space.lg, borderRadius: 12, borderWidth: 1, borderColor: colors.danger, backgroundColor: colors.card },
   emptyTitle: { fontSize: 16, color: colors.muted, textAlign: 'center' },
 });

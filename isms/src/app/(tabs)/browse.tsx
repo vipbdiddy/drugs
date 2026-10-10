@@ -1,17 +1,18 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { FlatList, View } from 'react-native';
+import { FlatList, RefreshControl, View } from 'react-native';
 
 import { IsmCard } from '../../components/IsmCard';
 import { Empty, Field, KindToggle, ScopeToggle, TopicPicker, styles } from '../../components/ui';
 import { matchesKind, visibleIsms } from '../../lib/advice';
 import { useStore } from '../../lib/store';
+import { colors } from '../../lib/theme';
 import type { KindFilter } from '../../lib/types';
 import { useScope } from '../../lib/useScope';
 
 export default function Browse() {
   const { topic } = useLocalSearchParams<{ topic?: string }>();
-  const { isms, lovedOnes, userId, getLovedOne } = useStore();
+  const { isms, lovedOnes, userId, getLovedOne, loading, refresh } = useStore();
   const [scope, setScope] = useScope();
   const [topics, setTopics] = useState<string[]>(topic ? [topic] : []);
   const [search, setSearch] = useState('');
@@ -38,6 +39,7 @@ export default function Browse() {
       style={styles.screen}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}
       data={results}
       keyExtractor={(ism) => ism.id}
       renderItem={({ item }) => <IsmCard ism={item} />}

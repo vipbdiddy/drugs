@@ -11,7 +11,9 @@ export interface LovedOne {
   /** Free-form, e.g. "1941 – 2019". */
   years?: string;
   about?: string;
-  /** Profile photo, stored on the device (a file URI on phones, a data URI on the web). */
+  /** Where the profile photo is kept in storage. */
+  photoPath?: string;
+  /** A link the app can show the photo from (fetched for photoPath, or bundled for examples). */
   photoUri?: string;
   obituary?: string;
   /** Public loved ones (and their isms) are visible to every user of the app. */
@@ -41,6 +43,11 @@ export interface Ism {
   keepPrivate?: boolean;
   createdAt: number;
 }
+
+/** The fields a person fills in for a loved one. */
+export type LovedOneInput = Omit<LovedOne, 'id' | 'ownerId' | 'createdAt' | 'photoPath' | 'photoUri'>;
+/** The fields a person fills in for a quote or story. */
+export type IsmInput = Omit<Ism, 'id' | 'ownerId' | 'createdAt'>;
 
 export interface Settings {
   displayName: string;

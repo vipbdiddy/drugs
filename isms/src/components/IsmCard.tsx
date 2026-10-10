@@ -56,7 +56,9 @@ export function IsmCard({ ism, showAuthor = true }: { ism: Ism; showAuthor?: boo
           <Text style={styles.topics}>{ism.topics.map(topicLabel).join(' · ')}</Text>
         </View>
         <Pressable
-          onPress={() => toggleSaved(ism.id)}
+          onPress={() => {
+            if (!toggleSaved(ism.id)) router.push('/account');
+          }}
           hitSlop={12}
           accessibilityRole="button"
           accessibilityLabel={saved ? 'Remove from saved' : 'Save'}>

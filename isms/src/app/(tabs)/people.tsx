@@ -8,6 +8,7 @@ import { useStore } from '../../lib/store';
 
 export default function People() {
   const { lovedOnes, isms, userId } = useStore();
+  const add = () => router.push(userId ? '/loved-one/edit' : '/account');
   const mine = lovedOnes.filter((l) => l.ownerId === userId);
   const shared = lovedOnes.filter((l) => l.ownerId !== userId && l.visibility === 'public');
   const countFor = (id: string) =>
@@ -15,7 +16,7 @@ export default function People() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-      <Button title="+ Add a loved one" onPress={() => router.push('/loved-one/edit')} />
+      <Button title={userId ? '+ Add a loved one' : 'Sign in to add a loved one'} onPress={add} />
 
       <Text style={styles.subheading}>Yours</Text>
       {mine.length === 0 ? (

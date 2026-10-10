@@ -27,6 +27,7 @@ function Root() {
       <Stack.Screen name="loved-one/[id]" options={{ title: '' }} />
       <Stack.Screen name="loved-one/edit" options={{ presentation: 'modal', title: 'Loved one' }} />
       <Stack.Screen name="ism/edit" options={{ presentation: 'modal', title: 'Add a memory' }} />
+      <Stack.Screen name="account" options={{ presentation: 'modal', title: 'Account' }} />
     </Stack>
   );
 }

@@ -1,18 +1,19 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 
 import { IsmCard } from '../../components/IsmCard';
-import { Button, Chip, ScopeToggle, styles } from '../../components/ui';
+import { Button, Chip, ErrorNote, ScopeToggle, styles } from '../../components/ui';
 import { visibleIsms } from '../../lib/advice';
 import { useStore } from '../../lib/store';
+import { colors, space } from '../../lib/theme';
 import { TOPICS } from '../../lib/topics';
 import { useScope } from '../../lib/useScope';
 
 const dayNumber = () => Math.floor((Date.now() - new Date().getTimezoneOffset() * 60_000) / 86_400_000);
 
 export default function Today() {
-  const { isms, lovedOnes, userId, settings, savedIsmIds } = useStore();
+  const { isms, lovedOnes, userId, settings, savedIsmIds, notice, dismissNotice, loadError, loading, refresh } = useStore();
   const [scope, setScope] = useScope();
   const [offset, setOffset] = useState(0);
 
@@ -23,10 +24,22 @@ export default function Today() {
   const saved = isms.filter((i) => savedIsmIds.has(i.id));
 
   return (
-    <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.accent} />}>
       <Text style={styles.heading}>
         {settings.displayName ? `Hi ${settings.displayName}.` : 'Hi there.'} Here's a word for today.
       </Text>
+      {notice ? (
+        <View style={banner}>
+          <Text style={[styles.body, { flex: 1 }]}>{notice}</Text>
+          <Text style={{ color: colors.accent, fontWeight: '600' }} onPress={dismissNotice}>
+            OK
+          </Text>
+        </View>
+      ) : null}
+      {loadError ? <ErrorNote message={loadError} /> : null}
       <ScopeToggle value={scope} onChange={setScope} />
 
       {todays ? (
@@ -37,13 +50,15 @@ export default function Today() {
       ) : (
         <View style={{ gap: 12 }}>
           <Text style={styles.body}>
-            {hasOwn
-              ? "You haven't added any of their quotes or stories yet."
-              : 'Start by adding someone you miss, then the things they always used to say and the stories you tell about them.'}
+            {!userId
+              ? 'Sign in to add someone you miss, the things they always used to say, and the stories you tell about them. Or switch to Everyone to read what other families shared.'
+              : hasOwn
+                ? "You haven't added any of their quotes or stories yet."
+                : 'Start by adding someone you miss, then the things they always used to say and the stories you tell about them.'}
           </Text>
           <Button
-            title={hasOwn ? 'Go to your loved ones' : 'Add a loved one'}
-            onPress={() => router.push(hasOwn ? '/people' : '/loved-one/edit')}
+            title={!userId ? 'Sign in or create an account' : hasOwn ? 'Go to your loved ones' : 'Add a loved one'}
+            onPress={() => router.push(!userId ? '/account' : hasOwn ? '/people' : '/loved-one/edit')}
           />
         </View>
       )}
@@ -66,3 +81,12 @@ export default function Today() {
     </ScrollView>
   );
 }
+
+const banner = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  gap: space.md,
+  padding: space.md,
+  borderRadius: 12,
+  backgroundColor: colors.sageSoft,
+};

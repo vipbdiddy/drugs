@@ -3,8 +3,8 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 
 import { Avatar } from '../../components/Avatar';
-import { Button, DangerButton, Field, styles } from '../../components/ui';
-import { deletePhoto, pickPhoto } from '../../lib/photos';
+import { Button, DangerButton, ErrorNote, Field, styles } from '../../components/ui';
+import { pickPhoto, type PickedPhoto } from '../../lib/photos';
 import { useStore } from '../../lib/store';
 import { colors } from '../../lib/theme';
 
@@ -19,39 +19,48 @@ export default function EditLovedOne() {
   const [years, setYears] = useState(existing?.years ?? '');
   const [about, setAbout] = useState(existing?.about ?? '');
   const [obituary, setObituary] = useState(existing?.obituary ?? '');
-  const [photoUri, setPhotoUri] = useState(existing?.photoUri);
+  // undefined: keep the current photo; null: remove it; a PickedPhoto: replace it.
+  const [photo, setPhoto] = useState<PickedPhoto | null>();
   const [isPublic, setIsPublic] = useState(existing?.visibility === 'public');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string>();
 
-  if (!editable) return null;
+  if (!editable || !userId) return null;
+
+  const photoUri = photo === null ? undefined : (photo?.previewUri ?? existing?.photoUri);
 
   const choosePhoto = async () => {
     try {
       const picked = await pickPhoto();
-      if (!picked) return;
-      // Drop a photo picked earlier in this visit that never got saved.
-      if (photoUri !== existing?.photoUri) deletePhoto(photoUri);
-      setPhotoUri(picked);
+      if (picked) setPhoto(picked);
     } catch (e) {
-      console.warn('Could not add photo', e);
+      setError(e instanceof Error ? e.message : 'Couldn’t add that photo.');
     }
   };
 
-  const save = () => {
+  const save = async () => {
     const fields = {
       name: name.trim(),
       relationship: relationship.trim(),
       years: years.trim() || undefined,
       about: about.trim() || undefined,
       obituary: obituary.trim() || undefined,
-      photoUri,
       visibility: isPublic ? ('public' as const) : ('private' as const),
     };
-    if (existing) {
-      updateLovedOne(existing.id, fields);
-      router.back();
-    } else {
-      const created = addLovedOne(fields);
-      router.replace({ pathname: '/loved-one/[id]', params: { id: created.id } });
+    setSaving(true);
+    setError(undefined);
+    try {
+      if (existing) {
+        await updateLovedOne(existing.id, fields, photo);
+        router.back();
+      } else {
+        const created = await addLovedOne(fields, photo ?? undefined);
+        router.replace({ pathname: '/loved-one/[id]', params: { id: created.id } });
+      }
+    } catch (e) {
+      console.warn('Could not save loved one', e);
+      setError('Couldn’t save. Check your connection and try again.');
+      setSaving(false);
     }
   };
 
@@ -66,7 +75,7 @@ export default function EditLovedOne() {
             {photoUri ? 'Change photo' : 'Add a photo'}
           </Text>
           {photoUri ? (
-            <Text style={{ color: colors.muted }} onPress={() => setPhotoUri(undefined)}>
+            <Text style={{ color: colors.muted }} onPress={() => setPhoto(null)}>
               Remove
             </Text>
           ) : null}
@@ -102,15 +111,21 @@ export default function EditLovedOne() {
         <Switch value={isPublic} onValueChange={setIsPublic} trackColor={{ true: colors.sage }} />
       </View>
 
-      <Button title={existing ? 'Save' : 'Add'} onPress={save} disabled={!name.trim()} />
+      {error ? <ErrorNote message={error} /> : null}
+      <Button title={saving ? 'Saving…' : existing ? 'Save' : 'Add'} onPress={save} disabled={!name.trim() || saving} />
       {existing && (
         <DangerButton
           title="Remove"
           message={`Remove ${existing.name}? This deletes them and every quote and story you added for them.`}
           confirmTitle="Remove"
-          onConfirm={() => {
-            deleteLovedOne(existing.id);
-            router.dismissAll();
+          onConfirm={async () => {
+            try {
+              await deleteLovedOne(existing.id);
+              router.dismissAll();
+            } catch (e) {
+              console.warn('Could not remove loved one', e);
+              setError('Couldn’t remove them. Check your connection and try again.');
+            }
           }}
         />
       )}

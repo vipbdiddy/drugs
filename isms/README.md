@@ -7,7 +7,8 @@ A mobile app for keeping the sayings — the "isms" — of people you've lost, a
 - **Browse** – search everything, and filter by topic and by quotes, stories, or both.
 - **Today** – one saying a day, plus everything you've saved (♥).
 - **My loved ones / Everyone** – every screen can show just your own loved ones' words, or also those other families chose to share. Set your default in Settings.
-- **Privacy** – a loved one is private unless you turn on sharing. When shared, you can still keep individual sayings private.
+- **Accounts** – sign in with email (and Google, Apple or Facebook once they're switched on) so memories are kept safe online and shared families are visible to everyone.
+- **Privacy** – a loved one is private unless you turn on sharing. When shared, you can still keep individual quotes or stories private. The database enforces this, not just the app.
 
 ## Run it
 
@@ -30,15 +31,14 @@ Expo (React Native) + Expo Router, TypeScript.
 | `src/lib/photos.ts` | Picking a photo and keeping a copy on the device |
 | `src/lib/advice.ts` | Who can see what, and matching a situation to sayings |
 | `src/lib/topics.ts` | Situations and the words that suggest them |
-| `src/lib/store.tsx` | App state, saved on the device |
+| `src/lib/store.tsx` | App state, loaded from and saved to Supabase |
+| `src/lib/db.ts`, `src/lib/auth.ts` | Talking to Supabase: data, sign-in |
+| `supabase/` | Database setup script and dashboard steps ([setup guide](supabase/README.md)) |
 | `src/lib/seed.ts` | Example shared families so "Everyone" isn't empty |
 
 ## What's next
 
-Right now everything is stored on the phone, so "Everyone" shows the example families plus your own. To let families actually share with each other the app needs a backend (e.g. Supabase or Firebase) with:
-
-- accounts, so each loved one has an owner (and later, several family members who can add sayings);
-- `loved_ones` and `isms` tables, readable by anyone only when the loved one is shared and the saying isn't kept private — the same rule as `canSee` in `src/lib/advice.ts`, enforced on the server;
-- reporting / moderation for shared content.
-
-Other ideas: voice recordings of them, reminders on birthdays and anniversaries, and smarter matching for "Ask" (e.g. using an LLM to pick the sayings that fit, while still only ever showing their real words).
+- Several family members adding to the same loved one.
+- Reporting and moderation for shared content.
+- Loading shared memories a page at a time once there are many.
+- Voice recordings, reminders on birthdays and anniversaries, and smarter matching for "Ask".

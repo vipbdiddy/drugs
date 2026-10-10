@@ -1,42 +1,60 @@
+import { decode } from 'base64-arraybuffer';
 import * as ImagePicker from 'expo-image-picker';
-import { Directory, File, Paths } from 'expo-file-system';
-import { Platform } from 'react-native';
 
 import { newId } from './ids';
+import { supabase } from './supabase';
 
-/**
- * Let the user pick a square photo and keep a copy the app owns.
- * On phones the picker's file lives in a cache the system can clear, so it's copied into the
- * app's documents; on the web there's no file system, so a small JPEG data URI is stored.
- * Returns undefined if they cancel.
- */
-export async function pickPhoto(): Promise<string | undefined> {
-  const web = Platform.OS === 'web';
+const BUCKET = 'photos';
+/** Photo links stay valid this long; the app asks for fresh ones each time it loads. */
+const LINK_SECONDS = 60 * 60 * 24;
+
+export interface PickedPhoto {
+  /** For showing the photo before it's saved. */
+  previewUri: string;
+  /** JPEG bytes, base64-encoded, for uploading. */
+  base64: string;
+}
+
+/** Let the person pick a square photo. Returns undefined if they cancel. */
+export async function pickPhoto(): Promise<PickedPhoto | undefined> {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     allowsEditing: true,
     aspect: [1, 1],
-    quality: web ? 0.4 : 0.7,
-    base64: web,
+    quality: 0.5,
+    base64: true,
   });
   if (result.canceled) return undefined;
   const asset = result.assets[0];
-  if (web) return asset.base64 ? `data:image/jpeg;base64,${asset.base64}` : asset.uri;
-
-  const dir = new Directory(Paths.document, 'photos');
-  if (!dir.exists) dir.create();
-  const dest = new File(dir, `${newId()}.jpg`);
-  await new File(asset.uri).copy(dest);
-  return dest.uri;
+  if (!asset.base64) throw new Error('Couldn’t read that photo. Try another one.');
+  return { previewUri: asset.uri, base64: asset.base64 };
 }
 
-/** Best-effort cleanup of a photo the app copied in. */
-export function deletePhoto(uri: string | undefined) {
-  if (!uri || Platform.OS === 'web' || !uri.startsWith('file:')) return;
-  try {
-    const file = new File(uri);
-    if (file.exists) file.delete();
-  } catch (e) {
-    console.warn('Could not delete photo', e);
+/** Upload a photo into the person's own folder and return its storage path. */
+export async function uploadPhoto(userId: string, base64: string): Promise<string> {
+  const path = `${userId}/${newId()}.jpg`;
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, decode(base64), { contentType: 'image/jpeg' });
+  if (error) throw error;
+  return path;
+}
+
+export async function deletePhoto(path: string | undefined) {
+  if (!path) return;
+  const { error } = await supabase.storage.from(BUCKET).remove([path]);
+  if (error) console.warn('Could not delete photo', error);
+}
+
+/** Short-lived links for the photos this person is allowed to see, keyed by storage path. */
+export async function photoLinks(paths: string[]): Promise<Map<string, string>> {
+  const links = new Map<string, string>();
+  if (paths.length === 0) return links;
+  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrls(paths, LINK_SECONDS);
+  if (error) {
+    console.warn('Could not load photos', error);
+    return links;
   }
+  for (const item of data) if (item.path && item.signedUrl) links.set(item.path, item.signedUrl);
+  return links;
 }

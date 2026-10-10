@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
 
-import { Button, DangerButton, Field, Segmented, TopicPicker, styles } from '../../components/ui';
+import { Button, DangerButton, ErrorNote, Field, Segmented, TopicPicker, styles } from '../../components/ui';
 import { detectTopics } from '../../lib/advice';
 import { useStore } from '../../lib/store';
 import { colors } from '../../lib/theme';
@@ -26,6 +26,8 @@ export default function EditIsm() {
   const [context, setContext] = useState(existing?.context ?? '');
   const [topics, setTopics] = useState<string[]>(existing?.topics ?? []);
   const [keepPrivate, setKeepPrivate] = useState(existing?.keepPrivate ?? false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string>();
 
   if (!lovedOne || lovedOne.ownerId !== userId || (existing && existing.ownerId !== userId)) return null;
 
@@ -34,7 +36,7 @@ export default function EditIsm() {
   const suggested = topics.length === 0 ? detectTopics(`${story ? title : context} ${text}`) : [];
   const noun = story ? 'story' : 'quote';
 
-  const save = () => {
+  const save = async () => {
     const fields = {
       kind,
       lovedOneId: lovedOne.id,
@@ -44,9 +46,17 @@ export default function EditIsm() {
       topics: topics.length ? topics : suggested,
       keepPrivate,
     };
-    if (existing) updateIsm(existing.id, fields);
-    else addIsm(fields);
-    router.back();
+    setSaving(true);
+    setError(undefined);
+    try {
+      if (existing) await updateIsm(existing.id, fields);
+      else await addIsm(fields);
+      router.back();
+    } catch (e) {
+      console.warn('Could not save', e);
+      setError('Couldn’t save. Check your connection and try again.');
+      setSaving(false);
+    }
   };
 
   return (
@@ -106,15 +116,21 @@ export default function EditIsm() {
         </View>
       )}
 
-      <Button title={existing ? 'Save' : 'Add'} onPress={save} disabled={!text.trim()} />
+      {error ? <ErrorNote message={error} /> : null}
+      <Button title={saving ? 'Saving…' : existing ? 'Save' : 'Add'} onPress={save} disabled={!text.trim() || saving} />
       {existing && (
         <DangerButton
           title="Delete"
           message={`Delete this ${noun}? This can't be undone.`}
           confirmTitle="Delete"
-          onConfirm={() => {
-            deleteIsm(existing.id);
-            router.back();
+          onConfirm={async () => {
+            try {
+              await deleteIsm(existing.id);
+              router.back();
+            } catch (e) {
+              console.warn('Could not delete', e);
+              setError('Couldn’t delete. Check your connection and try again.');
+            }
           }}
         />
       )}
