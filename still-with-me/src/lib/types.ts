@@ -11,18 +11,30 @@ export interface LovedOne {
   /** Free-form, e.g. "1941 – 2019". */
   years?: string;
   about?: string;
+  /** Profile photo, stored on the device (a file URI on phones, a data URI on the web). */
+  photoUri?: string;
+  obituary?: string;
   /** Public loved ones (and their isms) are visible to every user of the app. */
   visibility: Visibility;
   createdAt: number;
 }
 
+/** A short saying in their words, or a longer story about them. */
+export type EntryKind = 'quote' | 'story';
+
+/** Which kinds of entries to show. */
+export type KindFilter = 'all' | EntryKind;
+
 export interface Ism {
   id: string;
+  kind: EntryKind;
   ownerId: string;
   lovedOneId: string;
-  /** The words themselves, as they used to say it. */
+  /** Stories only: a short title, e.g. "The summer we drove to Memphis". */
+  title?: string;
+  /** For a quote, the words as they used to say it; for a story, the story itself. */
   text: string;
-  /** When or why they'd say it — the story behind the words. */
+  /** Quotes only: when or why they'd say it. */
   context?: string;
   topics: string[];
   /** Keeps a single ism private even when the loved one is shared publicly. */

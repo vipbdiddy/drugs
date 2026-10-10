@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { canSee, detectTopics, findAdvice, visibleIsms } from './advice.ts';
+import { canSee, detectTopics, findAdvice, matchesKind, visibleIsms } from './advice.ts';
 import type { Ism, LovedOne } from './types.ts';
 
 const ME = 'me';
@@ -20,6 +20,7 @@ const ism = (id: string, lovedOneId: string, ownerId: string, topics: string[], 
   ownerId,
   text,
   topics,
+  kind: 'quote',
   createdAt: 0,
   ...extra,
 });
@@ -68,4 +69,17 @@ test('ranks by topic first, then shared words, own loved ones on ties', () => {
 
 test('nothing to go on means no results', () => {
   assert.deepEqual(findAdvice('', [], [ism('1', 'mine', ME, ['love'])], ME), []);
+});
+
+test('filters quotes, stories, or both', () => {
+  const quote = ism('q', 'mine', ME, []);
+  const story = ism('s', 'mine', ME, [], 'One summer…', { kind: 'story', title: 'The lake house' });
+  assert.deepEqual([quote, story].filter((i) => matchesKind(i, 'quote')).map((i) => i.id), ['q']);
+  assert.deepEqual([quote, story].filter((i) => matchesKind(i, 'story')).map((i) => i.id), ['s']);
+  assert.deepEqual([quote, story].filter((i) => matchesKind(i, 'all')).map((i) => i.id), ['q', 's']);
+});
+
+test("a story's title counts when matching a situation", () => {
+  const story = ism('s', 'mine', ME, [], 'We drove all night.', { kind: 'story', title: 'Fishing at the lake' });
+  assert.deepEqual(findAdvice('thinking about fishing', [], [story], ME).map((m) => m.ism.id), ['s']);
 });

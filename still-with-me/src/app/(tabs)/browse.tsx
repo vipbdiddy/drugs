@@ -3,9 +3,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { FlatList, View } from 'react-native';
 
 import { IsmCard } from '../../components/IsmCard';
-import { Empty, Field, ScopeToggle, TopicPicker, styles } from '../../components/ui';
-import { visibleIsms } from '../../lib/advice';
+import { Empty, Field, KindToggle, ScopeToggle, TopicPicker, styles } from '../../components/ui';
+import { matchesKind, visibleIsms } from '../../lib/advice';
 import { useStore } from '../../lib/store';
+import type { KindFilter } from '../../lib/types';
 import { useScope } from '../../lib/useScope';
 
 export default function Browse() {
@@ -14,6 +15,7 @@ export default function Browse() {
   const [scope, setScope] = useScope();
   const [topics, setTopics] = useState<string[]>(topic ? [topic] : []);
   const [search, setSearch] = useState('');
+  const [kind, setKind] = useState<KindFilter>('all');
 
   // Arriving from a topic link on Today narrows to that topic.
   useEffect(() => {
@@ -24,11 +26,12 @@ export default function Browse() {
     const q = search.trim().toLowerCase();
     return visibleIsms(isms, lovedOnes, userId, scope).filter(
       (ism) =>
+        matchesKind(ism, kind) &&
         (topics.length === 0 || ism.topics.some((t) => topics.includes(t))) &&
         (!q ||
-          `${ism.text} ${ism.context ?? ''} ${getLovedOne(ism.lovedOneId)?.name ?? ''}`.toLowerCase().includes(q)),
+          `${ism.title ?? ''} ${ism.text} ${ism.context ?? ''} ${getLovedOne(ism.lovedOneId)?.name ?? ''}`.toLowerCase().includes(q)),
     );
-  }, [isms, lovedOnes, userId, scope, topics, search, getLovedOne]);
+  }, [isms, lovedOnes, userId, scope, kind, topics, search, getLovedOne]);
 
   return (
     <FlatList
@@ -41,6 +44,7 @@ export default function Browse() {
       ListHeaderComponent={
         <View style={{ gap: 12 }}>
           <ScopeToggle value={scope} onChange={setScope} />
+          <KindToggle value={kind} onChange={setKind} />
           <Field label="Search" placeholder="A word, a phrase, a name…" value={search} onChangeText={setSearch} />
           <TopicPicker
             selected={topics}
@@ -52,7 +56,7 @@ export default function Browse() {
         <Empty
           title={
             scope === 'mine'
-              ? 'No sayings from your loved ones match. Add some, or switch to Everyone.'
+              ? 'Nothing from your loved ones matches. Add more, or switch to Everyone.'
               : 'Nothing matches yet.'
           }
         />

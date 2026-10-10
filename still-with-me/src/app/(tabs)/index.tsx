@@ -38,8 +38,8 @@ export default function Today() {
         <View style={{ gap: 12 }}>
           <Text style={styles.body}>
             {hasOwn
-              ? "You haven't added any of their sayings yet."
-              : 'Start by adding someone you miss, then the things they always used to say.'}
+              ? "You haven't added any of their quotes or stories yet."
+              : 'Start by adding someone you miss, then the things they always used to say and the stories you tell about them.'}
           </Text>
           <Button
             title={hasOwn ? 'Go to your loved ones' : 'Add a loved one'}

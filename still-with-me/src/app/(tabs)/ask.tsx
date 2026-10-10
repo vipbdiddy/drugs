@@ -2,10 +2,11 @@ import { useMemo, useState } from 'react';
 import { ScrollView, Text } from 'react-native';
 
 import { IsmCard } from '../../components/IsmCard';
-import { Empty, Field, ScopeToggle, TopicPicker, styles } from '../../components/ui';
-import { detectTopics, findAdvice, visibleIsms } from '../../lib/advice';
+import { Empty, Field, KindToggle, ScopeToggle, TopicPicker, styles } from '../../components/ui';
+import { detectTopics, findAdvice, matchesKind, visibleIsms } from '../../lib/advice';
 import { useStore } from '../../lib/store';
 import { topicLabel } from '../../lib/topics';
+import type { KindFilter } from '../../lib/types';
 import { useScope } from '../../lib/useScope';
 
 export default function Ask() {
@@ -13,11 +14,18 @@ export default function Ask() {
   const [scope, setScope] = useScope();
   const [situation, setSituation] = useState('');
   const [picked, setPicked] = useState<string[]>([]);
+  const [kind, setKind] = useState<KindFilter>('all');
 
   const detected = useMemo(() => detectTopics(situation).filter((t) => !picked.includes(t)), [situation, picked]);
   const matches = useMemo(
-    () => findAdvice(situation, picked, visibleIsms(isms, lovedOnes, userId, scope), userId).slice(0, 25),
-    [situation, picked, isms, lovedOnes, userId, scope],
+    () =>
+      findAdvice(
+        situation,
+        picked,
+        visibleIsms(isms, lovedOnes, userId, scope).filter((i) => matchesKind(i, kind)),
+        userId,
+      ).slice(0, 25),
+    [situation, picked, isms, lovedOnes, userId, scope, kind],
   );
   const asked = situation.trim().length > 0 || picked.length > 0;
 
@@ -39,9 +47,10 @@ export default function Ask() {
         onToggle={(id) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]))}
       />
       <ScopeToggle value={scope} onChange={setScope} />
+      <KindToggle value={kind} onChange={setKind} />
 
       {asked && matches.length === 0 && (
-        <Empty title={scope === 'mine' ? "Nothing from your loved ones fits yet. Try 'Everyone', or add more of their sayings." : 'Nothing fits yet. Try different words or another situation.'} />
+        <Empty title={scope === 'mine' ? "Nothing from your loved ones fits yet. Try 'Everyone', or add more of their quotes and stories." : 'Nothing fits yet. Try different words or another situation.'} />
       )}
       {matches.map(({ ism }) => (
         <IsmCard key={ism.id} ism={ism} />

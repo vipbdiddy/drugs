@@ -1,5 +1,5 @@
 import { TOPICS } from './topics.ts';
-import type { Ism, LovedOne, Scope } from './types.ts';
+import type { Ism, KindFilter, LovedOne, Scope } from './types.ts';
 
 /** Whether a user may see an ism: always their own, otherwise only if the family shared it. */
 export function canSee(ism: Ism, lovedOne: LovedOne | undefined, userId: string): boolean {
@@ -19,6 +19,10 @@ export function visibleIsms(
       canSee(ism, byId.get(ism.lovedOneId), userId) &&
       (scope === 'everyone' || ism.ownerId === userId),
   );
+}
+
+export function matchesKind(ism: Ism, filter: KindFilter): boolean {
+  return filter === 'all' || ism.kind === filter;
 }
 
 function normalize(text: string): string {
@@ -84,7 +88,7 @@ export function findAdvice(
   return isms
     .map((ism) => {
       let score = ism.topics.filter((t) => topics.has(t)).length * 3;
-      const ismWords = meaningfulWords(`${ism.text} ${ism.context ?? ''}`);
+      const ismWords = meaningfulWords(`${ism.title ?? ''} ${ism.text} ${ism.context ?? ''}`);
       for (const w of words) if (ismWords.has(w)) score += 1;
       return { ism, score };
     })

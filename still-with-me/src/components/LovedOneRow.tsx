@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, space } from '../lib/theme';
+import { Avatar } from './Avatar';
 import type { LovedOne } from '../lib/types';
 
 export function LovedOneRow({ lovedOne, count, mine }: { lovedOne: LovedOne; count: number; mine: boolean }) {
@@ -9,16 +10,14 @@ export function LovedOneRow({ lovedOne, count, mine }: { lovedOne: LovedOne; cou
     <Pressable
       style={styles.row}
       onPress={() => router.push({ pathname: '/loved-one/[id]', params: { id: lovedOne.id } })}>
-      <View style={styles.avatar}>
-        <Text style={styles.initial}>{lovedOne.name.trim().charAt(0).toUpperCase()}</Text>
-      </View>
+      <Avatar lovedOne={lovedOne} />
       <View style={{ flex: 1 }}>
         <Text style={styles.name}>{lovedOne.name}</Text>
         <Text style={styles.meta}>
           {[lovedOne.relationship, lovedOne.years].filter(Boolean).join(' · ')}
         </Text>
         <Text style={styles.meta}>
-          {count} {count === 1 ? 'saying' : 'sayings'}
+          {count} {count === 1 ? 'memory' : 'memories'}
           {mine ? `  ·  ${lovedOne.visibility === 'public' ? 'Shared publicly' : 'Private to you'}` : ''}
         </Text>
       </View>
@@ -38,15 +37,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  initial: { fontSize: 20, fontWeight: '700', color: colors.accent },
   name: { fontSize: 17, fontWeight: '600', color: colors.ink },
   meta: { fontSize: 13, color: colors.muted, marginTop: 2 },
   chevron: { fontSize: 28, color: colors.muted },

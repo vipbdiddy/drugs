@@ -2,17 +2,26 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, Switch, Text, View } from 'react-native';
 
-import { Button, DangerButton, Field, TopicPicker, styles } from '../../components/ui';
+import { Button, DangerButton, Field, Segmented, TopicPicker, styles } from '../../components/ui';
 import { detectTopics } from '../../lib/advice';
 import { useStore } from '../../lib/store';
 import { colors } from '../../lib/theme';
+import type { EntryKind } from '../../lib/types';
+
+const KINDS = [
+  ['quote', 'A quote'],
+  ['story', 'A story'],
+] as const;
 
 export default function EditIsm() {
-  const { lovedOneId, id } = useLocalSearchParams<{ lovedOneId: string; id?: string }>();
+  const params = useLocalSearchParams<{ lovedOneId: string; id?: string; kind?: EntryKind }>();
+  const { lovedOneId, id } = params;
   const { getLovedOne, isms, addIsm, updateIsm, deleteIsm, userId } = useStore();
   const lovedOne = getLovedOne(lovedOneId);
   const existing = id ? isms.find((i) => i.id === id) : undefined;
 
+  const [kind, setKind] = useState<EntryKind>(existing?.kind ?? (params.kind === 'story' ? 'story' : 'quote'));
+  const [title, setTitle] = useState(existing?.title ?? '');
   const [text, setText] = useState(existing?.text ?? '');
   const [context, setContext] = useState(existing?.context ?? '');
   const [topics, setTopics] = useState<string[]>(existing?.topics ?? []);
@@ -21,13 +30,17 @@ export default function EditIsm() {
   if (!lovedOne || lovedOne.ownerId !== userId || (existing && existing.ownerId !== userId)) return null;
 
   // Until they pick topics themselves, suggest some from what they've typed.
-  const suggested = topics.length === 0 ? detectTopics(`${text} ${context}`) : [];
+  const story = kind === 'story';
+  const suggested = topics.length === 0 ? detectTopics(`${story ? title : context} ${text}`) : [];
+  const noun = story ? 'story' : 'quote';
 
   const save = () => {
     const fields = {
+      kind,
       lovedOneId: lovedOne.id,
+      title: story ? title.trim() || undefined : undefined,
       text: text.trim(),
-      context: context.trim() || undefined,
+      context: story ? undefined : context.trim() || undefined,
       topics: topics.length ? topics : suggested,
       keepPrivate,
     };
@@ -38,21 +51,39 @@ export default function EditIsm() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.muted}>Something {lovedOne.name} always used to say</Text>
-      <Field
-        label="In their words"
-        placeholder="“If you're scared, do it scared.”"
-        value={text}
-        onChangeText={setText}
-        multiline
-      />
-      <Field
-        label="When they'd say it (optional)"
-        placeholder="Every time I was nervous before a game…"
-        value={context}
-        onChangeText={setContext}
-        multiline
-      />
+      <Segmented options={KINDS} value={kind} onChange={setKind} />
+      {story ? (
+        <>
+          <Text style={styles.muted}>A memory of {lovedOne.name}, as long as you like</Text>
+          <Field label="Title (optional)" placeholder="The night the boat died" value={title} onChangeText={setTitle} />
+          <Field
+            label="The story"
+            placeholder="Tell it the way you'd tell it at the kitchen table…"
+            value={text}
+            onChangeText={setText}
+            multiline
+            style={{ minHeight: 240 }}
+          />
+        </>
+      ) : (
+        <>
+          <Text style={styles.muted}>Something {lovedOne.name} always used to say</Text>
+          <Field
+            label="In their words"
+            placeholder="“If you're scared, do it scared.”"
+            value={text}
+            onChangeText={setText}
+            multiline
+          />
+          <Field
+            label="When they'd say it (optional)"
+            placeholder="Every time I was nervous before a game…"
+            value={context}
+            onChangeText={setContext}
+            multiline
+          />
+        </>
+      )}
 
       <Text style={styles.label}>When would this help someone?</Text>
       <TopicPicker
@@ -69,7 +100,7 @@ export default function EditIsm() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>Keep this one private</Text>
-            <Text style={styles.hint}>{lovedOne.name} is shared publicly. Turn this on to keep just this saying to yourself.</Text>
+            <Text style={styles.hint}>{lovedOne.name} is shared publicly. Turn this on to keep just this {noun} to yourself.</Text>
           </View>
           <Switch value={keepPrivate} onValueChange={setKeepPrivate} trackColor={{ true: colors.sage }} />
         </View>
@@ -79,7 +110,7 @@ export default function EditIsm() {
       {existing && (
         <DangerButton
           title="Delete"
-          message="Delete this saying? This can't be undone."
+          message={`Delete this ${noun}? This can't be undone.`}
           confirmTitle="Delete"
           onConfirm={() => {
             deleteIsm(existing.id);

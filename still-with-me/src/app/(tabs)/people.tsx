@@ -19,7 +19,7 @@ export default function People() {
 
       <Text style={styles.subheading}>Yours</Text>
       {mine.length === 0 ? (
-        <Empty title="Add the people you miss, and the things they always used to say." />
+        <Empty title="Add the people you miss, the things they always used to say, and the stories you tell about them." />
       ) : (
         mine.map((l) => <LovedOneRow key={l.id} lovedOne={l} count={countFor(l.id)} mine />)
       )}

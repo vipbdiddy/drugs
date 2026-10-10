@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { newId } from './ids';
+import { deletePhoto } from './photos';
 import { SEED_ISMS, SEED_LOVED_ONES } from './seed';
 import type { Ism, LovedOne, Settings } from './types';
 
@@ -14,7 +16,6 @@ interface PersistedState {
   savedIsmIds: string[];
 }
 
-export const newId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 const initialState = (): PersistedState => ({
   userId: newId(),
@@ -57,7 +58,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
-        if (raw) setState({ ...initialState(), ...(JSON.parse(raw) as PersistedState) });
+        if (!raw) return;
+        const saved = JSON.parse(raw) as PersistedState;
+        // Entries saved before stories existed are all quotes.
+        saved.isms = saved.isms.map((i) => ({ ...i, kind: i.kind ?? 'quote' }));
+        setState({ ...initialState(), ...saved });
       })
       .catch((e) => console.warn('Could not load saved data', e))
       .finally(() => setReady(true));
@@ -100,12 +105,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       savedIsmIds: new Set(state.savedIsmIds),
       getLovedOne: (id) => byId.get(id),
       addLovedOne,
-      updateLovedOne: (id, patch) =>
+      updateLovedOne: (id, patch) => {
+        const old = state.lovedOnes.find((l) => l.id === id);
+        if ('photoUri' in patch && old?.photoUri !== patch.photoUri) deletePhoto(old?.photoUri);
         setState((s) => ({
           ...s,
           lovedOnes: s.lovedOnes.map((l) => (l.id === id ? { ...l, ...patch } : l)),
-        })),
-      deleteLovedOne: (id) =>
+        }));
+      },
+      deleteLovedOne: (id) => {
+        deletePhoto(state.lovedOnes.find((l) => l.id === id)?.photoUri);
         setState((s) => {
           const removed = new Set(s.isms.filter((i) => i.lovedOneId === id).map((i) => i.id));
           return {
@@ -114,7 +123,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             isms: s.isms.filter((i) => !removed.has(i.id)),
             savedIsmIds: s.savedIsmIds.filter((sid) => !removed.has(sid)),
           };
-        }),
+        });
+      },
       addIsm,
       updateIsm: (id, patch) =>
         setState((s) => ({ ...s, isms: s.isms.map((i) => (i.id === id ? { ...i, ...patch } : i)) })),
@@ -132,7 +142,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
             : [ismId, ...s.savedIsmIds],
         })),
       updateSettings: (patch) => setState((s) => ({ ...s, settings: { ...s.settings, ...patch } })),
-      resetEverything: () => setState(initialState()),
+      resetEverything: () => {
+        state.lovedOnes.forEach((l) => deletePhoto(l.photoUri));
+        setState(initialState());
+      },
     };
   }, [state, ready, addLovedOne, addIsm]);
 

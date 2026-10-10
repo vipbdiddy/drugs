@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInpu
 
 import { colors, space } from '../lib/theme';
 import { TOPICS } from '../lib/topics';
-import type { Scope } from '../lib/types';
+import type { KindFilter, Scope } from '../lib/types';
 
 export function Chip({ label, selected, onPress }: { label: string; selected?: boolean; onPress?: () => void }) {
   return (
@@ -38,26 +38,49 @@ export function TopicPicker({
   );
 }
 
-export function ScopeToggle({ value, onChange }: { value: Scope; onChange: (s: Scope) => void }) {
+/** A row of mutually exclusive options, like iOS's segmented control. */
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly (readonly [T, string])[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
   return (
     <View style={styles.segment} accessibilityRole="tablist">
-      {(
-        [
-          ['mine', 'My loved ones'],
-          ['everyone', 'Everyone'],
-        ] as const
-      ).map(([scope, label]) => (
+      {options.map(([option, label]) => (
         <Pressable
-          key={scope}
-          onPress={() => onChange(scope)}
+          key={option}
+          onPress={() => onChange(option)}
           accessibilityRole="tab"
-          accessibilityState={{ selected: value === scope }}
-          style={[styles.segmentItem, value === scope && styles.segmentItemActive]}>
-          <Text style={[styles.segmentText, value === scope && styles.segmentTextActive]}>{label}</Text>
+          accessibilityState={{ selected: value === option }}
+          style={[styles.segmentItem, value === option && styles.segmentItemActive]}>
+          <Text style={[styles.segmentText, value === option && styles.segmentTextActive]}>{label}</Text>
         </Pressable>
       ))}
     </View>
   );
+}
+
+const SCOPES = [
+  ['mine', 'My loved ones'],
+  ['everyone', 'Everyone'],
+] as const;
+
+export function ScopeToggle({ value, onChange }: { value: Scope; onChange: (s: Scope) => void }) {
+  return <Segmented options={SCOPES} value={value} onChange={onChange} />;
+}
+
+const KINDS = [
+  ['all', 'All'],
+  ['quote', 'Quotes'],
+  ['story', 'Stories'],
+] as const;
+
+export function KindToggle({ value, onChange }: { value: KindFilter; onChange: (k: KindFilter) => void }) {
+  return <Segmented options={KINDS} value={value} onChange={onChange} />;
 }
 
 export function Button({
