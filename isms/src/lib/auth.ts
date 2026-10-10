@@ -1,13 +1,34 @@
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
+import { readAuthLink } from './authLink';
 import type { SocialProvider } from './config';
 import { supabase } from './supabase';
 
-/** Pull a query or fragment parameter out of a redirect URL (React Native's URL has no searchParams). */
-function param(url: string, name: string): string | undefined {
-  const match = url.match(new RegExp(`[?&#]${name}=([^&#]*)`));
-  return match ? decodeURIComponent(match[1].replace(/\+/g, ' ')) : undefined;
+/** Where links in sign-in emails and social sign-in send people back to: isms://<path>. */
+const backToApp = (path: 'auth-callback' | 'reset-password') => Linking.createURL(path);
+
+// A link back into the app carries a one-time code. On Android both the browser hand-off and the
+// app's own link handling can see the same link, so each code is exchanged for a session only once.
+const exchanges = new Map<string, Promise<void>>();
+function exchangeCodeOnce(code: string): Promise<void> {
+  let pending = exchanges.get(code);
+  if (!pending) {
+    pending = supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
+      if (error) throw error;
+    });
+    exchanges.set(code, pending);
+  }
+  return pending;
+}
+
+/** Sign in with the code from a link back into the app (an email link or social sign-in). */
+export { readAuthLink };
+
+export async function finishAuthLink(link: { code?: string; error?: string }) {
+  if (link.error) throw new Error(link.error);
+  if (!link.code) throw new Error('That link didn’t include a sign-in. Ask for a new one.');
+  await exchangeCodeOnce(link.code);
 }
 
 /**
@@ -15,7 +36,7 @@ function param(url: string, name: string): string | undefined {
  * Returns false if the person closed the browser without finishing.
  */
 export async function signInWithProvider(provider: SocialProvider): Promise<boolean> {
-  const redirectTo = Linking.createURL('auth-callback');
+  const redirectTo = backToApp('auth-callback');
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: { redirectTo, skipBrowserRedirect: true },
@@ -24,13 +45,7 @@ export async function signInWithProvider(provider: SocialProvider): Promise<bool
 
   const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
   if (result.type !== 'success') return false;
-
-  const failure = param(result.url, 'error_description') ?? param(result.url, 'error');
-  if (failure) throw new Error(failure);
-  const code = param(result.url, 'code');
-  if (!code) throw new Error('Sign-in did not finish. Please try again.');
-  const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-  if (exchangeError) throw exchangeError;
+  await finishAuthLink(readAuthLink(result.url));
   return true;
 }
 
@@ -39,37 +54,41 @@ export async function signInWithEmail(email: string, password: string) {
   if (error) throw error;
 }
 
-/** Returns true when the account is ready to use, false when the email must be confirmed with a code first. */
+/**
+ * Returns true when the account is ready to use, false when the person must first open the
+ * confirmation link we emailed them (only when "Confirm email" is on in Supabase).
+ */
 export async function signUpWithEmail(email: string, password: string): Promise<boolean> {
-  const { data, error } = await supabase.auth.signUp({ email, password });
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: backToApp('auth-callback') },
+  });
   if (error) throw error;
   // With email confirmation on, Supabase answers an existing address with a user that has no
-  // identities (and sends nothing), so say so instead of waiting for a code that won't come.
+  // identities (and sends nothing), so say so instead of waiting for an email that won't come.
   if (!data.session && data.user?.identities?.length === 0) throw new Error('User already registered');
   return data.session !== null;
 }
 
-export async function resendSignUpCode(email: string) {
-  const { error } = await supabase.auth.resend({ type: 'signup', email });
+export async function resendConfirmation(email: string) {
+  const { error } = await supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: backToApp('auth-callback') },
+  });
   if (error) throw error;
 }
 
-export async function confirmSignUp(email: string, code: string) {
-  const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'signup' });
-  if (error) throw error;
-}
-
+/** Email a link that opens the app's "choose a new password" screen. */
 export async function sendPasswordReset(email: string) {
-  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: backToApp('reset-password') });
   if (error) throw error;
 }
 
-/** Finish a password reset with the code from the email, then set the new password. */
-export async function resetPassword(email: string, code: string, newPassword: string) {
-  const { error } = await supabase.auth.verifyOtp({ email, token: code, type: 'recovery' });
+export async function setNewPassword(password: string) {
+  const { error } = await supabase.auth.updateUser({ password });
   if (error) throw error;
-  const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-  if (updateError) throw updateError;
 }
 
 export async function signOut() {
@@ -81,10 +100,13 @@ export async function signOut() {
 export function friendlyAuthError(e: unknown): string {
   const message = e instanceof Error ? e.message : String(e);
   if (/invalid login credentials/i.test(message)) return 'That email and password don’t match. Check them, or reset your password.';
-  if (/email not confirmed/i.test(message)) return 'Confirm your email first: enter the code we sent you.';
+  if (/email not confirmed/i.test(message)) return 'Confirm your email first: open the link we sent you.';
   if (/already registered|already been registered/i.test(message)) return 'There’s already an account with that email. Sign in instead.';
   if (/password should be at least/i.test(message)) return 'Use a password with at least 6 characters.';
-  if (/token has expired|invalid.*otp|otp.*invalid/i.test(message)) return 'That code didn’t work or has expired. Ask for a new one.';
+  if (/should be different from the old password/i.test(message)) return 'Choose a password you haven’t used before.';
+  if (/expired|invalid.*(otp|token)|otp_expired/i.test(message)) return 'That link has expired or was already used. Ask for a new one.';
+  if (/code verifier|flow state|pkce/i.test(message)) return 'Open the link on the same phone where you asked for it.';
+  if (/not authorized|error sending/i.test(message)) return 'We couldn’t send the email right now. Please try again later.';
   if (/rate limit/i.test(message)) return 'Too many tries. Wait a minute and try again.';
   if (/network|fetch/i.test(message)) return 'Couldn’t reach the server. Check your connection and try again.';
   return message;

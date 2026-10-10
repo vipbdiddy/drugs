@@ -9,34 +9,20 @@ The app talks to the Supabase project in `src/lib/config.ts`. These steps are do
 
 Running it again later is safe.
 
-## 2. Let people confirm their email and reset passwords with a code
+## 2. Email: what works on the free plan
 
-The app asks for a 6-digit code instead of sending people to a web page.
+Supabase's built-in email only reaches members of your Supabase organization, about 2 emails an hour, and new free projects can't edit its templates. The app works with the standard emails as they are: confirmation and password-reset emails contain a link that opens the app.
 
-1. Open **Authentication → Emails** (called **Email Templates** on some dashboards).
-2. In **Confirm signup**, replace the message with:
+Until you connect your own email service:
 
-   ```html
-   <h2>Welcome to Ism's</h2>
-   <p>Your code is: <strong>{{ .Token }}</strong></p>
-   <p>Enter it in the app to finish creating your account.</p>
-   ```
+1. Open **Authentication → Sign In / Providers → Email** and switch off **Confirm email**, then save. People can sign up without waiting for an email.
+2. Password-reset emails will only reach members of your Supabase organization.
 
-3. In **Reset Password**, replace the message with:
-
-   ```html
-   <h2>Reset your Ism's password</h2>
-   <p>Your code is: <strong>{{ .Token }}</strong></p>
-   <p>Enter it in the app, then choose a new password.</p>
-   ```
-
-4. Save both.
-
-Supabase's built-in email service sends only a few emails an hour. That's fine for testing; before inviting lots of people, set up your own email sender under **Authentication → Emails → SMTP Settings** (Resend and Postmark both have free tiers).
+Before inviting the public, connect an email service under **Authentication → Emails → SMTP Settings** (Resend and Postmark have free plans; both need a domain name you own). Then switch **Confirm email** back on if you want people to confirm their address.
 
 ## 3. Allow the app to receive sign-ins
 
-Open **Authentication → URL Configuration** and, under **Redirect URLs**, add:
+Open **Authentication → URL Configuration** and, under **Redirect URLs**, add the address that email links and social sign-in return to:
 
 ```
 isms://**

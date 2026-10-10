@@ -4,10 +4,8 @@ import { Platform, ScrollView, Text, View } from 'react-native';
 
 import { Button, ErrorNote, Field, styles } from '../components/ui';
 import {
-  confirmSignUp,
   friendlyAuthError,
-  resendSignUpCode,
-  resetPassword,
+  resendConfirmation,
   sendPasswordReset,
   signInWithEmail,
   signInWithProvider,
@@ -16,7 +14,8 @@ import {
 import { SOCIAL_PROVIDERS, type SocialProvider } from '../lib/config';
 import { colors } from '../lib/theme';
 
-type Mode = 'signIn' | 'signUp' | 'confirm' | 'forgot' | 'reset';
+/** checkEmail: waiting for the person to open the confirmation link; resetSent: the reset link. */
+type Mode = 'signIn' | 'signUp' | 'checkEmail' | 'forgot' | 'resetSent';
 
 const PROVIDER_LABELS: Record<SocialProvider, string> = {
   google: 'Continue with Google',
@@ -27,16 +26,15 @@ const PROVIDER_LABELS: Record<SocialProvider, string> = {
 const TITLES: Record<Mode, string> = {
   signIn: 'Sign in',
   signUp: 'Create your account',
-  confirm: 'Check your email',
+  checkEmail: 'Check your email',
   forgot: 'Reset your password',
-  reset: 'Choose a new password',
+  resetSent: 'Check your email',
 };
 
 export default function Account() {
   const [mode, setMode] = useState<Mode>('signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [info, setInfo] = useState<string>();
@@ -45,7 +43,6 @@ export default function Account() {
     setMode(next);
     setError(undefined);
     setInfo(undefined);
-    setCode('');
   };
 
   const run = async (action: () => Promise<void>) => {
@@ -64,47 +61,36 @@ export default function Account() {
   const cleanEmail = email.trim().toLowerCase();
   // Social sign-in opens the phone's browser and returns to the app; the web version can't do that.
   const providers = Platform.OS === 'web' ? [] : SOCIAL_PROVIDERS;
+  const entering = mode === 'signIn' || mode === 'signUp';
+  const waiting = mode === 'checkEmail' || mode === 'resetSent';
 
   const submit = () =>
     run(async () => {
-      switch (mode) {
-        case 'signIn':
-          await signInWithEmail(cleanEmail, password);
-          return done();
-        case 'signUp':
-          if (await signUpWithEmail(cleanEmail, password)) return done();
-          setInfo(`We sent a code to ${cleanEmail}. Enter it below to finish.`);
-          return setMode('confirm');
-        case 'confirm':
-          await confirmSignUp(cleanEmail, code.trim());
-          return done();
-        case 'forgot':
-          await sendPasswordReset(cleanEmail);
-          setInfo(`If there's an account for ${cleanEmail}, we sent it a code.`);
-          return setMode('reset');
-        case 'reset':
-          await resetPassword(cleanEmail, code.trim(), password);
-          return done();
+      if (mode === 'signIn') {
+        await signInWithEmail(cleanEmail, password);
+        done();
+      } else if (mode === 'signUp') {
+        if (await signUpWithEmail(cleanEmail, password)) done();
+        else go('checkEmail');
+      } else if (mode === 'forgot') {
+        await sendPasswordReset(cleanEmail);
+        go('resetSent');
       }
     });
 
-  const canSubmit =
-    cleanEmail.includes('@') &&
-    (mode === 'forgot' ||
-      (mode === 'confirm' && code.trim().length >= 6) ||
-      (mode === 'reset' && code.trim().length >= 6 && password.length >= 6) ||
-      ((mode === 'signIn' || mode === 'signUp') && password.length >= 6));
+  const canSubmit = cleanEmail.includes('@') && (mode === 'forgot' || password.length >= 6);
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <Text style={styles.heading}>{TITLES[mode]}</Text>
-      {mode === 'signIn' || mode === 'signUp' ? (
+
+      {entering && (
         <Text style={styles.muted}>
           Your loved ones, quotes and stories are saved to your account, so they're safe if you change phones.
         </Text>
-      ) : null}
+      )}
 
-      {(mode === 'signIn' || mode === 'signUp') && providers.length > 0 && (
+      {entering && providers.length > 0 && (
         <View style={{ gap: 8 }}>
           {providers.map((p) => (
             <Button
@@ -114,7 +100,7 @@ export default function Account() {
               disabled={busy}
               onPress={() =>
                 run(async () => {
-                  if (await signInWithProvider(p)) done();
+                  if (await signInWithProvider(p)) router.dismissTo('/');
                 })
               }
             />
@@ -123,53 +109,52 @@ export default function Account() {
         </View>
       )}
 
+      {mode === 'checkEmail' && (
+        <Text style={styles.body}>
+          We sent a link to {cleanEmail}. Open it on this phone to finish creating your account. If you open it on a
+          computer, come back here afterwards and sign in.
+        </Text>
+      )}
+      {mode === 'resetSent' && (
+        <Text style={styles.body}>
+          If there's an account for {cleanEmail}, we sent it a link. Open it on this phone to choose a new password.
+        </Text>
+      )}
       {info ? <Text style={[styles.body, { color: colors.sage }]}>{info}</Text> : null}
 
-      <Field
-        label="Email"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoComplete="email"
-        keyboardType="email-address"
-        textContentType="emailAddress"
-        editable={mode !== 'confirm' && mode !== 'reset'}
-      />
-      {(mode === 'confirm' || mode === 'reset') && (
+      {!waiting && (
         <Field
-          label="Code from the email"
-          value={code}
-          onChangeText={setCode}
-          keyboardType="number-pad"
-          autoComplete="one-time-code"
-          textContentType="oneTimeCode"
-          maxLength={10}
+          label="Email"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="emailAddress"
         />
       )}
-      {(mode === 'signIn' || mode === 'signUp' || mode === 'reset') && (
+      {entering && (
         <Field
-          label={mode === 'reset' ? 'New password' : 'Password'}
+          label="Password"
           value={password}
           onChangeText={setPassword}
           secureTextEntry
           autoCapitalize="none"
           autoComplete={mode === 'signIn' ? 'current-password' : 'new-password'}
           textContentType={mode === 'signIn' ? 'password' : 'newPassword'}
-          hint={mode === 'signIn' ? undefined : 'At least 6 characters.'}
+          hint={mode === 'signUp' ? 'At least 6 characters.' : undefined}
         />
       )}
 
       {error ? <ErrorNote message={error} /> : null}
 
-      <Button
-        title={
-          busy
-            ? 'One moment…'
-            : { signIn: 'Sign in', signUp: 'Create account', confirm: 'Confirm', forgot: 'Send code', reset: 'Save new password' }[mode]
-        }
-        onPress={submit}
-        disabled={!canSubmit || busy}
-      />
+      {!waiting && (
+        <Button
+          title={busy ? 'One moment…' : { signIn: 'Sign in', signUp: 'Create account', forgot: 'Send reset link' }[mode]}
+          onPress={submit}
+          disabled={!canSubmit || busy}
+        />
+      )}
 
       <View style={{ gap: 12, alignItems: 'center', marginTop: 8 }}>
         {mode === 'signIn' && (
@@ -187,19 +172,19 @@ export default function Account() {
             Already have an account? Sign in
           </Text>
         )}
-        {mode === 'confirm' && (
+        {mode === 'checkEmail' && (
           <Text
             style={link}
             onPress={() =>
               run(async () => {
-                await resendSignUpCode(cleanEmail);
-                setInfo(`We sent a new code to ${cleanEmail}.`);
+                await resendConfirmation(cleanEmail);
+                setInfo(`We sent a new link to ${cleanEmail}.`);
               })
             }>
-            Send the code again
+            Send the link again
           </Text>
         )}
-        {(mode === 'forgot' || mode === 'reset' || mode === 'confirm') && (
+        {mode !== 'signIn' && mode !== 'signUp' && (
           <Text style={link} onPress={() => go('signIn')}>
             Back to sign in
           </Text>
